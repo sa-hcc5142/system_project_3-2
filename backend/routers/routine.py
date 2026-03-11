@@ -55,16 +55,36 @@ async def parse_routine(file: UploadFile = File(...)):
     with open(saved_path, "wb") as f:
         f.write(content)
 
-    # Placeholder OCR call
-    raw_text = extract_text_from_image(str(saved_path))
+    try:
+        raw_text = extract_text_from_image(str(saved_path))
+        detected_courses = extract_course_items_from_text(raw_text)
 
-    # Placeholder parser call
-    detected_courses = extract_course_items_from_text(raw_text)
+        message = f"Routine processed successfully. {len(detected_courses)} distinct course(s) detected."
+        if len(detected_courses) == 0:
+            message = (
+                "Routine processed successfully, but no course codes were detected. "
+                "Try a clearer image or adjust OCR preprocessing."
+            )
 
-    return ParseResponse(
-        success=True,
-        message="Routine uploaded successfully. OCR integration is currently in placeholder mode.",
-        filename=file.filename,
-        detected_courses=detected_courses,
-        raw_text=raw_text,
-    )
+        return ParseResponse(
+            success=True,
+            message=message,
+            filename=file.filename,
+            detected_courses=detected_courses,
+            raw_text=raw_text,
+        )
+
+    except ValueError as exc:
+        return ParseResponse(
+            success=True,
+            message=str(exc),
+            filename=file.filename,
+            detected_courses=[],
+            raw_text="",
+        )
+
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Routine parsing failed: {str(exc)}",
+        )

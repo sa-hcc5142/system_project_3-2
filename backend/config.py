@@ -11,7 +11,10 @@ class Settings(BaseSettings):
     port: int = 8000
     upload_dir: str = "uploads/routines"
     max_file_size_mb: int = 10
-    allowed_origins: List[str] = ["http://localhost:3000"]
+    allowed_origins: List[str] = [
+        "http://localhost:3000"
+    ]
+    tesseract_cmd: str = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
     model_config = SettingsConfigDict(
         env_file=".env",
