@@ -59,12 +59,27 @@ async def parse_routine(file: UploadFile = File(...)):
         raw_text = extract_text_from_image(str(saved_path))
         detected_courses = extract_course_items_from_text(raw_text)
 
-        message = f"Routine processed successfully. {len(detected_courses)} distinct course(s) detected."
         if len(detected_courses) == 0:
             message = (
                 "Routine processed successfully, but no course codes were detected. "
-                "Try a clearer image or adjust OCR preprocessing."
+                "Try a clearer image or correct them manually in confirmation."
             )
+        else:
+            structured_count = sum(
+                1 for item in detected_courses
+                if item.course_name is not None and item.course_type is not None
+            )
+            uncertain_count = len(detected_courses) - structured_count
+
+            if uncertain_count == 0:
+                message = (
+                    f"Routine processed successfully. {len(detected_courses)} structured course(s) detected."
+                )
+            else:
+                message = (
+                    f"Routine processed successfully. {len(detected_courses)} course(s) detected, "
+                    f"including {uncertain_count} uncertain item(s) that may need confirmation."
+                )
 
         return ParseResponse(
             success=True,
