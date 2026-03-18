@@ -26,7 +26,7 @@ export async function parseRoutine(file: File): Promise<ParseResponse> {
         message = errorData.detail;
       }
     } catch {
-      // ignore json parse error
+      // ignore
     }
 
     throw new Error(message);
@@ -69,6 +69,31 @@ export async function fetchConfirmedCourses() {
 
   if (!response.ok) {
     throw new Error("Failed to fetch confirmed courses.");
+  }
+
+  return response.json();
+}
+
+export async function fetchCourseByCode(courseCode: string) {
+  const encoded = encodeURIComponent(courseCode);
+
+  const response = await fetch(`${BASE_URL}/api/v1/courses/${encoded}`, {
+    method: "GET",
+  });
+
+  if (!response.ok) {
+    let message = "Failed to fetch course.";
+
+    try {
+      const errorData = await response.json();
+      if (errorData?.detail) {
+        message = errorData.detail;
+      }
+    } catch {
+      // ignore
+    }
+
+    throw new Error(message);
   }
 
   return response.json();

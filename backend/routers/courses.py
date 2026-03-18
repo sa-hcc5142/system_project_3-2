@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from urllib.parse import unquote
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -40,6 +41,21 @@ def get_courses():
         "success": True,
         "courses": _read_confirmed_courses(),
     }
+
+
+@router.get("/{course_code}")
+def get_course(course_code: str):
+    decoded_code = unquote(course_code).upper()
+    courses = _read_confirmed_courses()
+
+    for course in courses:
+        if course["code"].upper() == decoded_code:
+            return {
+                "success": True,
+                "course": course,
+            }
+
+    raise HTTPException(status_code=404, detail="Course not found.")
 
 
 @router.post("/confirm")
