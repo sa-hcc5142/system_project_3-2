@@ -86,3 +86,7 @@ pip-log.txt
 *.swo
 tmp/
 temp/
+
+# Custom ML experiments (do not commit)
+backend/custom_cell_classifier/
+backend/requirements-custom-ml.txt
