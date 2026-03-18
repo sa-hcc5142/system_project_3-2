@@ -1,5 +1,6 @@
 "use client";
 
+import { saveConfirmedCourses } from "@/lib/api";
 import type { CourseItem } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -186,15 +187,18 @@ export default function ConfirmPage() {
 
     try {
       const cleanedCourses = courses.map((course) => ({
-        ...course,
         code: normalizeCourseCodeInput(course.code),
         title: course.title.trim(),
+        type: course.type,
       }));
 
+      await saveConfirmedCourses(cleanedCourses);
       sessionStorage.setItem("confirmedCourses", JSON.stringify(cleanedCourses));
-      await new Promise((resolve) => setTimeout(resolve, 500));
       router.push("/dashboard");
-    } catch {
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to save confirmed courses.";
+      setFormError(message);
       setSaving(false);
     }
   };

@@ -1,0 +1,57 @@
+[
+  {
+    "code": "CSE 3200",
+    "title": "System Development Project",
+    "type": "Sessional"
+  },
+  {
+    "code": "CSE 3209",
+    "title": "Artificial Intelligence",
+    "type": "Theory"
+  },
+  {
+    "code": "CSE 3210",
+    "title": "Artificial Intelligence Laboratory",
+    "type": "Lab"
+  },
+  {
+    "code": "CSE 3211",
+    "title": "Compiler Design",
+    "type": "Theory"
+  },
+  {
+    "code": "CSE 3212",
+    "title": "Compiler Design Laboratory",
+    "type": "Lab"
+  },
+  {
+    "code": "CSE 3217",
+    "title": "Mobile Computing",
+    "type": "Theory"
+  },
+  {
+    "code": "CSE 3218",
+    "title": "Mobile Computing Laboratory",
+    "type": "Lab"
+  },
+  {
+    "code": "CSE 3219",
+    "title": "Software Engineering and Project Management",
+    "type": "Theory"
+  },
+  {
+    "code": "CSE 3220",
+    "title": "Software Engineering and Project Management Laboratory",
+    "type": "Lab"
+  },
+  {
+    "code": "CSE 3230",
+    "title": "Technical Writing and Seminar",
+    "type": "Sessional"
+  },
+  {
+    "code": "HUM 3247",
+    "title": "Engineers and Society",
+    "type": "Theory"
+  }
+]
