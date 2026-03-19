@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from routers import workspace
+from routers import notes
 from fastapi.middleware.cors import CORSMiddleware
 
 from config import get_settings
@@ -43,3 +44,4 @@ def health_check():
 app.include_router(routine_router)
 app.include_router(courses_router)
 app.include_router(workspace.router)
+app.include_router(notes.router)
