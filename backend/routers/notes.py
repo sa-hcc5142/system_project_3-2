@@ -18,6 +18,8 @@ router = APIRouter(prefix="/api/v1/notes", tags=["Notes"])
 
 NOTES_COLLECTION = "courseNotes"
 
+def normalize_course_code(code: str) -> str:
+    return "".join(code.upper().split())
 
 def now_string():
     return datetime.now().strftime("%Y-%m-%d %I:%M %p")
@@ -25,6 +27,7 @@ def now_string():
 
 @router.get("/{course_code}", response_model=NoteListResponse)
 def get_notes_by_course(course_code: str):
+    course_code = normalize_course_code(course_code)
     notes_ref = db.collection(NOTES_COLLECTION)
     query = notes_ref.where(filter=FieldFilter("course_code", "==", course_code))
     docs = query.stream()
@@ -51,7 +54,7 @@ def get_notes_by_course(course_code: str):
 @router.post("", response_model=NoteSingleResponse)
 def create_note(payload: NoteCreateRequest):
     new_note = {
-        "course_code": payload.course_code.strip(),
+        "course_code": normalize_course_code(payload.course_code),
         "title": payload.title.strip(),
         "content": payload.content.strip(),
         "updated_at": now_string(),
@@ -79,7 +82,7 @@ def update_note(note_id: str, payload: NoteUpdateRequest):
     existing = doc.to_dict()
 
     updated_note = {
-        "course_code": existing["course_code"],
+        "course_code": normalize_course_code(existing["course_code"]),
         "title": payload.title.strip(),
         "content": payload.content.strip(),
         "updated_at": now_string(),
