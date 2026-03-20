@@ -10,9 +10,15 @@ export type NoteItem = {
   updated_at: string;
 };
 
+function normalizeCourseCode(courseCode: string): string {
+  return courseCode.replace(/\s+/g, "").toUpperCase();
+}
+
 export async function fetchNotesByCourse(courseCode: string): Promise<NoteItem[]> {
+  const normalizedCourseCode = normalizeCourseCode(courseCode);
+
   const response = await fetch(
-    `${BASE_URL}/api/v1/notes/${encodeURIComponent(courseCode)}`
+    `${BASE_URL}/api/v1/notes/${encodeURIComponent(normalizedCourseCode)}`
   );
 
   if (!response.ok) {
@@ -24,13 +30,15 @@ export async function fetchNotesByCourse(courseCode: string): Promise<NoteItem[]
 }
 
 export async function createNote(courseCode: string, title: string, content: string) {
+  const normalizedCourseCode = normalizeCourseCode(courseCode);
+
   const response = await fetch(`${BASE_URL}/api/v1/notes`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      course_code: courseCode,
+      course_code: normalizedCourseCode,
       title,
       content,
     }),
