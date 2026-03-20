@@ -8,6 +8,13 @@ import {
   type NoteItem,
 } from "@/lib/notes-api";
 import {
+  createNote,
+  deleteNote,
+  fetchNotesByCourse,
+  updateNote,
+  type NoteItem,
+} from "../../../lib/notes-api";
+import {
   fetchWorkspaceChat,
   fetchWorkspaceMaterials,
   fetchWorkspaceOverview,
