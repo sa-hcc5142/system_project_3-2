@@ -8,3 +8,4 @@ pytesseract==0.3.13
 opencv-python==4.10.0.84
 numpy==2.1.1
 firebase-admin
+google-cloud-storage
