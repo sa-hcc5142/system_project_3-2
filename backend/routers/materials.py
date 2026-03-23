@@ -1,5 +1,3 @@
-# backend/routers/materials.py
-
 from datetime import datetime
 import mimetypes
 import os
@@ -11,8 +9,9 @@ from fastapi import APIRouter, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from google.cloud.firestore_v1.base_query import FieldFilter
 
+from services.file_text_extractor import extract_text_by_filename
 from services.firebase_admin_init import db
-from services.material_storage import upload_file_to_cloudinary
+from services.material_storage import upload_file_to_cloudinary, validate_material_file
 
 router = APIRouter(prefix="/api/v1/materials", tags=["Materials"])
 
@@ -23,7 +22,7 @@ def normalize_course_code(code: str) -> str:
     return "".join(code.upper().split())
 
 
-def now_string():
+def now_string() -> str:
     return datetime.now().strftime("%Y-%m-%d %I:%M %p")
 
 
@@ -35,7 +34,33 @@ def upload_material(course_code: str, file: UploadFile = File(...)):
     normalized_code = normalize_course_code(course_code)
 
     try:
+        validate_material_file(file)
+
+        file_bytes = file.file.read()
+        file.file.seek(0)
+
         result = upload_file_to_cloudinary(normalized_code, file)
+
+        extraction_status = "processing"
+        extracted_text = ""
+        extraction_error = ""
+        extracted_at = None
+
+        try:
+            extracted_text = extract_text_by_filename(file.filename, file_bytes)
+
+            if extracted_text.strip():
+                extraction_status = "completed"
+                extracted_at = now_string()
+            else:
+                extraction_status = "failed"
+                extraction_error = "No readable text could be extracted from this file."
+        except Exception as extraction_exception:
+            extraction_status = "failed"
+            extraction_error = str(extraction_exception)
+
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -45,6 +70,10 @@ def upload_material(course_code: str, file: UploadFile = File(...)):
         "file_url": result["file_url"],
         "public_id": result["public_id"],
         "uploaded_at": now_string(),
+        "extraction_status": extraction_status,
+        "extracted_text": extracted_text,
+        "extraction_error": extraction_error,
+        "extracted_at": extracted_at,
     }
 
     doc_ref = db.collection(COLLECTION).document()
@@ -52,7 +81,7 @@ def upload_material(course_code: str, file: UploadFile = File(...)):
 
     return {
         "id": doc_ref.id,
-        **new_doc
+        **new_doc,
     }
 
 
@@ -69,14 +98,44 @@ def get_materials(course_code: str):
     materials = []
     for doc in docs:
         data = doc.to_dict()
-        materials.append({
-            "id": doc.id,
-            "filename": data["filename"],
-            "file_url": data["file_url"],
-            "uploaded_at": data["uploaded_at"],
-        })
+        full_text = data.get("extracted_text", "") or ""
+
+        materials.append(
+            {
+                "id": doc.id,
+                "filename": data["filename"],
+                "file_url": data["file_url"],
+                "uploaded_at": data["uploaded_at"],
+                "extraction_status": data.get("extraction_status", "processing"),
+                "extraction_error": data.get("extraction_error", ""),
+                "extracted_at": data.get("extracted_at"),
+                "text_preview": full_text[:300],
+            }
+        )
 
     return {"materials": materials}
+
+
+@router.get("/detail/{material_id}")
+def get_material_detail(material_id: str):
+    doc_ref = db.collection(COLLECTION).document(material_id)
+    doc = doc_ref.get()
+
+    if not doc.exists:
+        raise HTTPException(status_code=404, detail="Material not found.")
+
+    data = doc.to_dict()
+
+    return {
+        "id": doc.id,
+        "filename": data["filename"],
+        "file_url": data["file_url"],
+        "uploaded_at": data["uploaded_at"],
+        "extraction_status": data.get("extraction_status", "processing"),
+        "extraction_error": data.get("extraction_error", ""),
+        "extracted_at": data.get("extracted_at"),
+        "extracted_text": data.get("extracted_text", ""),
+    }
 
 
 @router.get("/preview/{material_id}")
@@ -167,7 +226,7 @@ def delete_material(material_id: str):
             if destroy_result.get("result") not in {"ok", "not found"}:
                 raise HTTPException(
                     status_code=500,
-                    detail=f"Cloudinary delete failed: {destroy_result}"
+                    detail=f"Cloudinary delete failed: {destroy_result}",
                 )
     except HTTPException:
         raise
