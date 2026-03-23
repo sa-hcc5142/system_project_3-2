@@ -7,6 +7,21 @@ export type MaterialItem = {
   filename: string;
   file_url: string;
   uploaded_at: string;
+  extraction_status: string;
+  extraction_error: string;
+  extracted_at?: string | null;
+  text_preview: string;
+};
+
+export type MaterialDetail = {
+  id: string;
+  filename: string;
+  file_url: string;
+  uploaded_at: string;
+  extraction_status: string;
+  extraction_error: string;
+  extracted_at?: string | null;
+  extracted_text: string;
 };
 
 function normalizeCourseCode(courseCode: string): string {
@@ -40,6 +55,16 @@ export async function fetchMaterialsByCourse(courseCode: string): Promise<Materi
 
   const data = await response.json();
   return data.materials || [];
+}
+
+export async function fetchMaterialDetail(materialId: string): Promise<MaterialDetail> {
+  const response = await fetch(`${BASE_URL}/api/v1/materials/detail/${materialId}`);
+
+  if (!response.ok) {
+    throw new Error("Failed to load material details.");
+  }
+
+  return response.json();
 }
 
 export async function uploadMaterial(courseCode: string, file: File) {
