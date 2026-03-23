@@ -2,10 +2,12 @@
 
 import {
   deleteMaterial,
+  fetchMaterialDetail,
   fetchMaterialsByCourse,
   getMaterialDownloadUrl,
   getMaterialPreviewUrl,
   uploadMaterial,
+  type MaterialDetail,
   type MaterialItem,
 } from "@/lib/materials-api";
 import {
@@ -45,6 +47,8 @@ export default function CourseWorkspacePage() {
   const [uploadingMaterial, setUploadingMaterial] = useState(false);
   const [materialError, setMaterialError] = useState("");
   const [activeMaterialId, setActiveMaterialId] = useState<string | null>(null);
+  const [selectedMaterial, setSelectedMaterial] = useState<MaterialDetail | null>(null);
+  const [loadingMaterialDetail, setLoadingMaterialDetail] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -79,13 +83,11 @@ export default function CourseWorkspacePage() {
   }, [courseId]);
 
   async function reloadNotes() {
-    const refreshed = await fetchNotesByCourse(courseId);
-    setNotes(refreshed);
+    setNotes(await fetchNotesByCourse(courseId));
   }
 
   async function reloadMaterials() {
-    const refreshed = await fetchMaterialsByCourse(courseId);
-    setMaterials(refreshed);
+    setMaterials(await fetchMaterialsByCourse(courseId));
   }
 
   async function handleSaveNote() {
@@ -112,12 +114,9 @@ export default function CourseWorkspacePage() {
       setNoteTitle("");
       setNoteContent("");
       setEditingNoteId(null);
-
       await reloadNotes();
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to save note.";
-      setNoteError(message);
+      setNoteError(err instanceof Error ? err.message : "Failed to save note.");
     } finally {
       setSavingNote(false);
     }
@@ -142,9 +141,7 @@ export default function CourseWorkspacePage() {
 
       await reloadNotes();
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to delete note.";
-      setNoteError(message);
+      setNoteError(err instanceof Error ? err.message : "Failed to delete note.");
     }
   }
 
@@ -170,9 +167,7 @@ export default function CourseWorkspacePage() {
       await uploadMaterial(courseId, file);
       await reloadMaterials();
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to upload material.";
-      setMaterialError(message);
+      setMaterialError(err instanceof Error ? err.message : "Failed to upload material.");
     } finally {
       setUploadingMaterial(false);
       event.target.value = "";
@@ -184,21 +179,17 @@ export default function CourseWorkspacePage() {
   }
 
   function handlePreview(materialId: string) {
-    const previewUrl = getMaterialPreviewUrl(materialId);
-    window.open(previewUrl, "_blank", "noopener,noreferrer");
+    window.open(getMaterialPreviewUrl(materialId), "_blank", "noopener,noreferrer");
     setActiveMaterialId(null);
   }
 
   function handleDownload(materialId: string, filename: string) {
-    const downloadUrl = getMaterialDownloadUrl(materialId);
-
     const link = document.createElement("a");
-    link.href = downloadUrl;
+    link.href = getMaterialDownloadUrl(materialId);
     link.download = filename;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-
     setActiveMaterialId(null);
   }
 
@@ -207,29 +198,48 @@ export default function CourseWorkspacePage() {
       setMaterialError("");
       await deleteMaterial(materialId);
       await reloadMaterials();
+
+      if (selectedMaterial?.id === materialId) {
+        setSelectedMaterial(null);
+      }
+
       setActiveMaterialId(null);
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to delete material.";
-      setMaterialError(message);
+      setMaterialError(err instanceof Error ? err.message : "Failed to delete material.");
     }
   }
 
-  if (loading) {
-    return <div className="p-6">Loading workspace...</div>;
+  async function handleOpenMaterialDetail(materialId: string) {
+    try {
+      setLoadingMaterialDetail(true);
+      setMaterialError("");
+      const detail = await fetchMaterialDetail(materialId);
+      setSelectedMaterial(detail);
+    } catch (err) {
+      setMaterialError(err instanceof Error ? err.message : "Failed to load material details.");
+    } finally {
+      setLoadingMaterialDetail(false);
+      setActiveMaterialId(null);
+    }
   }
 
-  if (error) {
-    return <div className="p-6 text-red-600">{error}</div>;
+  function renderStatusBadge(status: string) {
+    if (status === "completed") {
+      return <span className="rounded-full bg-green-100 px-2 py-1 text-xs text-green-700">Extracted</span>;
+    }
+    if (status === "failed") {
+      return <span className="rounded-full bg-red-100 px-2 py-1 text-xs text-red-700">Failed</span>;
+    }
+    return <span className="rounded-full bg-yellow-100 px-2 py-1 text-xs text-yellow-700">Processing</span>;
   }
+
+  if (loading) return <div className="p-6">Loading workspace...</div>;
+  if (error) return <div className="p-6 text-red-600">{error}</div>;
 
   return (
     <div className="min-h-screen bg-zinc-50 p-6">
       <div className="mx-auto max-w-7xl">
-        <Link
-          href="/dashboard"
-          className="mb-4 inline-block text-sm text-zinc-600 hover:text-zinc-900"
-        >
+        <Link href="/dashboard" className="mb-4 inline-block text-sm text-zinc-600 hover:text-zinc-900">
           ← Back to Dashboard
         </Link>
 
@@ -243,6 +253,7 @@ export default function CourseWorkspacePage() {
         </div>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          {/* Notes */}
           <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-xl font-semibold">Lecture Notes</h2>
@@ -259,7 +270,6 @@ export default function CourseWorkspacePage() {
                 onChange={(e) => setNoteTitle(e.target.value)}
                 className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
               />
-
               <textarea
                 placeholder="Write your note here..."
                 value={noteContent}
@@ -280,11 +290,7 @@ export default function CourseWorkspacePage() {
                   disabled={savingNote}
                   className="rounded-lg bg-zinc-900 px-4 py-2 text-sm text-white hover:bg-zinc-700 disabled:opacity-60"
                 >
-                  {savingNote
-                    ? "Saving..."
-                    : editingNoteId
-                    ? "Update Note"
-                    : "Create Note"}
+                  {savingNote ? "Saving..." : editingNoteId ? "Update Note" : "Create Note"}
                 </button>
 
                 {editingNoteId && (
@@ -307,12 +313,8 @@ export default function CourseWorkspacePage() {
                 notes.map((note) => (
                   <div key={note.id} className="rounded-lg border border-zinc-200 p-3">
                     <h3 className="font-medium text-zinc-900">{note.title}</h3>
-                    <p className="mt-2 whitespace-pre-wrap text-sm text-zinc-600">
-                      {note.content}
-                    </p>
-                    <p className="mt-2 text-xs text-zinc-400">
-                      Updated: {note.updated_at}
-                    </p>
+                    <p className="mt-2 whitespace-pre-wrap text-sm text-zinc-600">{note.content}</p>
+                    <p className="mt-2 text-xs text-zinc-400">Updated: {note.updated_at}</p>
 
                     <div className="mt-3 flex gap-2">
                       <button
@@ -334,11 +336,12 @@ export default function CourseWorkspacePage() {
             </div>
           </section>
 
+          {/* Materials */}
           <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-xl font-semibold">Slides & Documents</h2>
-              <span className="rounded-full bg-blue-100 px-3 py-1 text-xs text-blue-700">
-                Day 8 Active
+              <span className="rounded-full bg-purple-100 px-3 py-1 text-xs text-purple-700">
+                Day 9 Active
               </span>
             </div>
 
@@ -368,7 +371,7 @@ export default function CourseWorkspacePage() {
 
             {uploadingMaterial && (
               <div className="mb-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700">
-                Uploading material...
+                Uploading and extracting text...
               </div>
             )}
 
@@ -389,9 +392,20 @@ export default function CourseWorkspacePage() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="truncate font-medium text-zinc-900">{item.filename}</p>
-                        <p className="mt-1 text-xs text-zinc-500">
-                          Uploaded: {item.uploaded_at}
-                        </p>
+                        <div className="mt-1">{renderStatusBadge(item.extraction_status)}</div>
+                        <p className="mt-1 text-xs text-zinc-500">Uploaded: {item.uploaded_at}</p>
+
+                        {item.extraction_status === "completed" && item.text_preview && (
+                          <p className="mt-2 text-xs text-zinc-600 whitespace-pre-wrap">
+                            {item.text_preview}
+                          </p>
+                        )}
+
+                        {item.extraction_status === "failed" && item.extraction_error && (
+                          <p className="mt-2 text-xs text-red-600">
+                            Error: {item.extraction_error}
+                          </p>
+                        )}
                       </div>
 
                       <div className="relative">
@@ -403,7 +417,13 @@ export default function CourseWorkspacePage() {
                         </button>
 
                         {activeMaterialId === item.id && (
-                          <div className="absolute right-0 z-10 mt-2 w-36 rounded-lg border border-zinc-200 bg-white shadow-lg">
+                          <div className="absolute right-0 z-10 mt-2 w-40 rounded-lg border border-zinc-200 bg-white shadow-lg">
+                            <button
+                              onClick={() => handleOpenMaterialDetail(item.id)}
+                              className="block w-full px-4 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-100"
+                            >
+                              View Details
+                            </button>
                             <button
                               onClick={() => handlePreview(item.id)}
                               className="block w-full px-4 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-100"
@@ -430,28 +450,52 @@ export default function CourseWorkspacePage() {
                 ))
               )}
             </div>
+
+            <div className="mt-4 rounded-lg border border-dashed border-zinc-300 p-3 text-sm text-zinc-500">
+              PDF and DOCX are prioritized for reliable extraction. PPTX is best-effort.
+            </div>
           </section>
 
+          {/* Detail View */}
           <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-xl font-semibold">AI Chatbot</h2>
+              <h2 className="text-xl font-semibold">Material Detail</h2>
               <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs text-zinc-700">
-                Stub
+                Extraction View
               </span>
             </div>
 
-            <div className="space-y-3">
-              {messages.map((msg) => (
-                <div key={msg.id} className="rounded-lg bg-zinc-100 p-3">
-                  <p className="text-sm font-medium text-zinc-700">{msg.role}</p>
-                  <p className="mt-1 text-sm text-zinc-900">{msg.content}</p>
+            {loadingMaterialDetail ? (
+              <div className="text-sm text-zinc-600">Loading material detail...</div>
+            ) : !selectedMaterial ? (
+              <div className="rounded-lg border border-dashed border-zinc-300 p-3 text-sm text-zinc-500">
+                Select “View Details” on a material to inspect extracted text and processing result.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div>
+                  <p className="font-medium text-zinc-900">{selectedMaterial.filename}</p>
+                  <p className="mt-1 text-xs text-zinc-500">
+                    Uploaded: {selectedMaterial.uploaded_at}
+                  </p>
+                  <p className="mt-1 text-xs text-zinc-500">
+                    Extracted at: {selectedMaterial.extracted_at || "Not available"}
+                  </p>
                 </div>
-              ))}
-            </div>
 
-            <div className="mt-4 rounded-lg border border-dashed border-zinc-300 p-3 text-sm text-zinc-500">
-              Real chat starts on Day 10.
-            </div>
+                <div>{renderStatusBadge(selectedMaterial.extraction_status)}</div>
+
+                {selectedMaterial.extraction_error && (
+                  <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                    {selectedMaterial.extraction_error}
+                  </div>
+                )}
+
+                <div className="max-h-[420px] overflow-y-auto rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-700 whitespace-pre-wrap">
+                  {selectedMaterial.extracted_text || "No extracted text available."}
+                </div>
+              </div>
+            )}
           </section>
         </div>
       </div>
