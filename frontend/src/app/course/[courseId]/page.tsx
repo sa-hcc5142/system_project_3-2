@@ -1,6 +1,14 @@
 "use client";
 
 import {
+  deleteMaterial,
+  fetchMaterialsByCourse,
+  getMaterialDownloadUrl,
+  getMaterialPreviewUrl,
+  uploadMaterial,
+  type MaterialItem,
+} from "@/lib/materials-api";
+import {
   createNote,
   deleteNote,
   fetchNotesByCourse,
@@ -9,15 +17,13 @@ import {
 } from "@/lib/notes-api";
 import {
   fetchWorkspaceChat,
-  fetchWorkspaceMaterials,
   fetchWorkspaceOverview,
   type ChatMessageStub,
-  type MaterialStub,
   type WorkspaceOverview,
 } from "@/lib/workspace-api";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export default function CourseWorkspacePage() {
   const params = useParams<{ courseId: string }>();
@@ -25,7 +31,7 @@ export default function CourseWorkspacePage() {
 
   const [overview, setOverview] = useState<WorkspaceOverview | null>(null);
   const [notes, setNotes] = useState<NoteItem[]>([]);
-  const [materials, setMaterials] = useState<MaterialStub[]>([]);
+  const [materials, setMaterials] = useState<MaterialItem[]>([]);
   const [messages, setMessages] = useState<ChatMessageStub[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -36,6 +42,11 @@ export default function CourseWorkspacePage() {
   const [savingNote, setSavingNote] = useState(false);
   const [noteError, setNoteError] = useState("");
 
+  const [uploadingMaterial, setUploadingMaterial] = useState(false);
+  const [materialError, setMaterialError] = useState("");
+  const [activeMaterialId, setActiveMaterialId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
   useEffect(() => {
     async function loadWorkspace() {
       try {
@@ -45,7 +56,7 @@ export default function CourseWorkspacePage() {
         const [overviewData, notesData, materialsData, chatData] = await Promise.all([
           fetchWorkspaceOverview(courseId),
           fetchNotesByCourse(courseId),
-          fetchWorkspaceMaterials(courseId),
+          fetchMaterialsByCourse(courseId),
           fetchWorkspaceChat(courseId),
         ]);
 
@@ -70,6 +81,11 @@ export default function CourseWorkspacePage() {
   async function reloadNotes() {
     const refreshed = await fetchNotesByCourse(courseId);
     setNotes(refreshed);
+  }
+
+  async function reloadMaterials() {
+    const refreshed = await fetchMaterialsByCourse(courseId);
+    setMaterials(refreshed);
   }
 
   async function handleSaveNote() {
@@ -137,6 +153,66 @@ export default function CourseWorkspacePage() {
     setNoteTitle("");
     setNoteContent("");
     setNoteError("");
+  }
+
+  function handleOpenUploadPicker() {
+    fileInputRef.current?.click();
+  }
+
+  async function handleMaterialUpload(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file || !courseId) return;
+
+    try {
+      setUploadingMaterial(true);
+      setMaterialError("");
+
+      await uploadMaterial(courseId, file);
+      await reloadMaterials();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to upload material.";
+      setMaterialError(message);
+    } finally {
+      setUploadingMaterial(false);
+      event.target.value = "";
+    }
+  }
+
+  function toggleMaterialActions(materialId: string) {
+    setActiveMaterialId((prev) => (prev === materialId ? null : materialId));
+  }
+
+  function handlePreview(materialId: string) {
+    const previewUrl = getMaterialPreviewUrl(materialId);
+    window.open(previewUrl, "_blank", "noopener,noreferrer");
+    setActiveMaterialId(null);
+  }
+
+  function handleDownload(materialId: string, filename: string) {
+    const downloadUrl = getMaterialDownloadUrl(materialId);
+
+    const link = document.createElement("a");
+    link.href = downloadUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    setActiveMaterialId(null);
+  }
+
+  async function handleDeleteMaterial(materialId: string) {
+    try {
+      setMaterialError("");
+      await deleteMaterial(materialId);
+      await reloadMaterials();
+      setActiveMaterialId(null);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to delete material.";
+      setMaterialError(message);
+    }
   }
 
   if (loading) {
@@ -261,23 +337,98 @@ export default function CourseWorkspacePage() {
           <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-xl font-semibold">Slides & Documents</h2>
-              <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs text-zinc-700">
-                Placeholder
+              <span className="rounded-full bg-blue-100 px-3 py-1 text-xs text-blue-700">
+                Day 8 Active
               </span>
             </div>
 
-            <div className="space-y-3">
-              {materials.map((item) => (
-                <div key={item.id} className="rounded-lg border border-zinc-200 p-3">
-                  <p className="font-medium text-zinc-900">{item.filename}</p>
-                  <p className="mt-1 text-sm text-zinc-600">Type: {item.file_type}</p>
-                  <p className="mt-1 text-xs text-zinc-400">Status: {item.status}</p>
-                </div>
-              ))}
+            <div className="mb-4 flex items-center gap-3">
+              <button
+                onClick={handleOpenUploadPicker}
+                disabled={uploadingMaterial}
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-900 text-lg text-white hover:bg-zinc-700 disabled:opacity-60"
+                title="Upload material"
+              >
+                +
+              </button>
+
+              <div className="text-sm text-zinc-600">
+                Click + to upload PDF, DOCX, or PPTX materials.
+              </div>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.docx,.pptx"
+                className="hidden"
+                onChange={handleMaterialUpload}
+                disabled={uploadingMaterial}
+              />
             </div>
 
-            <div className="mt-4 rounded-lg border border-dashed border-zinc-300 p-3 text-sm text-zinc-500">
-              Material upload/list logic comes on Day 8.
+            {uploadingMaterial && (
+              <div className="mb-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700">
+                Uploading material...
+              </div>
+            )}
+
+            {materialError && (
+              <div className="mb-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                {materialError}
+              </div>
+            )}
+
+            <div className="space-y-3">
+              {materials.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-zinc-300 p-3 text-sm text-zinc-500">
+                  No materials uploaded for this course yet.
+                </div>
+              ) : (
+                materials.map((item) => (
+                  <div key={item.id} className="rounded-lg border border-zinc-200 p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate font-medium text-zinc-900">{item.filename}</p>
+                        <p className="mt-1 text-xs text-zinc-500">
+                          Uploaded: {item.uploaded_at}
+                        </p>
+                      </div>
+
+                      <div className="relative">
+                        <button
+                          onClick={() => toggleMaterialActions(item.id)}
+                          className="rounded-md border border-zinc-300 px-3 py-1 text-sm text-zinc-700 hover:bg-zinc-100"
+                        >
+                          Open
+                        </button>
+
+                        {activeMaterialId === item.id && (
+                          <div className="absolute right-0 z-10 mt-2 w-36 rounded-lg border border-zinc-200 bg-white shadow-lg">
+                            <button
+                              onClick={() => handlePreview(item.id)}
+                              className="block w-full px-4 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-100"
+                            >
+                              Preview
+                            </button>
+                            <button
+                              onClick={() => handleDownload(item.id, item.filename)}
+                              className="block w-full px-4 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-100"
+                            >
+                              Download
+                            </button>
+                            <button
+                              onClick={() => handleDeleteMaterial(item.id)}
+                              className="block w-full px-4 py-2 text-left text-sm text-red-700 hover:bg-red-50"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </section>
 
