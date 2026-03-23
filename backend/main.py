@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from routers import workspace
 from routers import notes
+from routers import materials
 from fastapi.middleware.cors import CORSMiddleware
 
 from config import get_settings
@@ -45,3 +46,4 @@ app.include_router(routine_router)
 app.include_router(courses_router)
 app.include_router(workspace.router)
 app.include_router(notes.router)
+app.include_router(materials.router)

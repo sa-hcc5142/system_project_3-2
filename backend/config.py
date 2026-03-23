@@ -6,7 +6,14 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    debug: bool = True
+    app_name: str = "System Project Backend"
+    debug: bool = False
+
+    cloudinary_cloud_name: str | None = None
+    cloudinary_api_key: str | None = None
+    cloudinary_api_secret: str | None = None
+
+    #debug: bool = True
     host: str = "127.0.0.1"
     port: int = 8000
     upload_dir: str = "uploads/routines"
