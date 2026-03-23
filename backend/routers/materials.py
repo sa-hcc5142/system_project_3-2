@@ -36,9 +36,11 @@ def upload_material(course_code: str, file: UploadFile = File(...)):
     normalized_code = normalize_course_code(course_code)
 
     try:
+        # Read bytes once for extraction
         file_bytes = file.file.read()
         file.file.seek(0)
 
+        # Upload to Cloudinary
         result = upload_file_to_cloudinary(normalized_code, file)
 
         extraction_status = "processing"
@@ -208,11 +210,19 @@ def delete_material(material_id: str):
 
     try:
         if public_id:
-            cloudinary.uploader.destroy(
+            destroy_result = cloudinary.uploader.destroy(
                 public_id,
                 resource_type="raw",
                 invalidate=True,
             )
+
+            if destroy_result.get("result") not in {"ok", "not found"}:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Cloudinary delete failed: {destroy_result}"
+                )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Cloudinary delete failed: {str(e)}")
 
