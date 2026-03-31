@@ -1,41 +1,94 @@
+# =========================
 # Dependencies
+# =========================
 node_modules/
+frontend/node_modules/
+
+# =========================
+# Python
+# =========================
 __pycache__/
-*.pyc
+*.py[cod]
+*.pyo
+*.pyd
+*.egg
+*.egg-info/
+.python-version
+
+# Virtual environments
 .venv/
 venv/
 env/
+backend/.venv/
+backend/venv/
+backend/env/
 
+# =========================
 # Environment variables
+# =========================
 .env
 .env.local
 .env.*.local
+backend/.env
+frontend/.env.local
 
-# Build outputs
+# Keep example env files
+!backend/.env.example
+
+# =========================
+# Build outputs / caches
+# =========================
 .next/
+frontend/.next/
 out/
 build/
 dist/
+.cache/
 
-# IDE
-.vscode/settings.json
+# =========================
+# Testing / coverage
+# =========================
+coverage/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+htmlcov/
+
+# =========================
+# Uploads / generated files
+# =========================
+uploads/
+backend/uploads/
+
+# =========================
+# IDE / editor
+# =========================
+.vscode/
+!.vscode/extensions.json
 .idea/
 
-# OS
+# =========================
+# OS files
+# =========================
 .DS_Store
 Thumbs.db
 desktop.ini
 
-# Python
-*.egg-info/
-*.egg
-pip-log.txt
-
-# Testing
-coverage/
-.pytest_cache/
-
-# Misc
+# =========================
+# Logs / temp / misc
+# =========================
 *.log
+pip-log.txt
 *.bak
 *.swp
+*.swo
+tmp/
+temp/
+
+# Custom ML experiments (do not commit)
+backend/custom_cell_classifier/
+backend/requirements-custom-ml.txt
+
+backend/config/firebase_service_account.json
